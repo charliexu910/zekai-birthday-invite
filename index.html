@@ -623,10 +623,6 @@ function confetti(n){
 
 /* ---------- RSVP ---------- */
 var STORE_KEY = 'xzk-birthday-rsvp';
-/* ★ 部署后把你的表单地址填到这里，回执就会自动记录到云端名单（参加/不参加都会记录）。
-   获取方法见 README.md：在 https://formspree.io 免费注册 → New form → 复制形如
-   https://formspree.io/f/abcdwxyz 的地址填入下面引号内。留空则只在本地保存。 */
-var RSVP_ENDPOINT = "";
 var state = { ad:1, kd:1 };
 var form = document.getElementById('join-form');
 var resultBox = document.getElementById('result');
@@ -687,22 +683,21 @@ function saveRsvp(data){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(Object.assign({time:Date.now()}, data))); }catch(e){}
 }
 
-/* 云端上报：把回执推送到 RSVP_ENDPOINT（参加与不参加都会上报），非阻塞 */
+/* 云端上报：直接把回执写入你腾讯云 COS 的 inbox/（参加与不参加都会记录），非阻塞 */
+var COS_BASE = "https://charliexu-invite-1409899932.cos.ap-shanghai.myqcloud.com/inbox/";
 function reportRsvp(data){
-  if(!RSVP_ENDPOINT) return Promise.resolve('skip');
+  var fname = Date.now() + '-' + encodeURIComponent((data.name || 'guest').slice(0,24)) + '.json';
   var payload = {
-    _subject: '🎂泽恺生日回执·' + (data.join ? '参加' : '不参加') + '·' + (data.name || '未署名'),
-    回复: data.join ? '✅ 参加' : '❌ 不参加',
-    称呼: data.name || '-',
-    大人: data.join ? data.ad : 0,
-    小朋友: data.join ? data.kd : 0,
-    合计人数: data.join ? (data.ad + data.kd) : 0,
-    留言: data.note || '-',
-    提交时间: new Date().toLocaleString('zh-CN')
+    join: !!data.join,
+    name: (data.name || '-').slice(0, 24),
+    ad: data.join ? data.ad : 0,
+    kd: data.join ? data.kd : 0,
+    note: (data.note || '').slice(0, 120),
+    time: new Date().toLocaleString('zh-CN')
   };
-  return fetch(RSVP_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+  return fetch(COS_BASE + fname, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(function(r){ return r.ok ? 'ok' : 'fail'; })
     .catch(function(){ return 'fail'; });
@@ -745,7 +740,7 @@ function renderResult(d){
       + '<svg class="ok-ico" viewBox="0 0 16 16" shape-rendering="crispEdges"><rect x="1" y="7" width="3" height="3" fill="#6abe30"/><rect x="4" y="9" width="2" height="2" fill="#6abe30"/><rect x="6" y="10" width="2" height="2" fill="#6abe30"/><rect x="8" y="8" width="2" height="2" fill="#6abe30"/><rect x="10" y="6" width="2" height="2" fill="#6abe30"/><rect x="12" y="4" width="3" height="2" fill="#6abe30"/><rect x="8" y="6" width="2" height="2" fill="#4e8f26"/><rect x="10" y="4" width="2" height="2" fill="#4e8f26"/></svg>'
       + '<h4>组队成功！</h4>'
       + '<p class="rc-line">' + esc(d.name) + ' · 小队 <b>' + (d.ad + d.kd) + '</b> 人已就位<br>大人 ' + d.ad + ' 位 · 小朋友 ' + d.kd + ' 位' + (d.note ? '<br>悄悄话：' + esc(d.note) : '') + '</p>'
-      + '<p class="rc-note">💡 点下面按钮复制回执，发给<b>许泽恺的爸爸妈妈</b>的微信，就完成报名啦！</p>'
+      + '<p class="rc-note">🎉 你的回执已自动登记到派对名单！<br>也可以点「复制回执」发给<b>许泽恺的爸爸妈妈</b>说一声～</p>'
       + '<div class="result-actions">'
       + '<button class="mc-btn gold" id="btn-copy" type="button">📋 复制回执文案</button>'
       + '<button class="mc-btn" style="flex:0 0 44%" id="btn-edit" type="button">✎ 修改</button>'

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>回执名单 · 泽恺生日派对</title>
+<style>
+:root{--night:#0e1a33;--line:#2c3f6e;--grass:#6abe30;--gold:#ffc93c;--red:#e8574a;--cream:#fff8e8;--ink:#23324d;--soft:#5b6b8c}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--night);color:#fff;
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.5px);background-size:120px 120px;
+  display:flex;justify-content:center;min-height:100vh}
+.wrap{width:100%;max-width:520px;padding:26px 16px 60px}
+h1{font-size:22px;text-align:center;letter-spacing:2px;margin-bottom:6px}
+h1 b{color:var(--gold)}
+.sub{text-align:center;color:#8fa3d6;font-size:12px;letter-spacing:3px;margin-bottom:22px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.stat{background:rgba(8,14,30,.8);border:2px solid var(--line);text-align:center;padding:12px 4px;
+  clip-path:polygon(0 6px,6px 0,calc(100% - 6px) 0,100% 6px,100% calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,0 calc(100% - 6px))}
+.stat b{display:block;font-size:22px;color:var(--gold)}
+.stat.on b{color:var(--grass)} .stat.off b{color:var(--red)}
+.stat span{font-size:11px;color:#9fb4e8}
+table{width:100%;border-collapse:collapse;background:var(--cream);color:var(--ink);font-size:13px;
+  clip-path:polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px))}
+th{background:#23324d;color:#fff;padding:9px 6px;font-size:12px;font-weight:600}
+td{padding:9px 6px;text-align:center;border-top:1px solid #eadfc2;line-height:1.5}
+tr.yes td:first-child{color:var(--grass);font-weight:700}
+tr.no td:first-child{color:var(--red)}
+.note{color:var(--soft);font-size:12px}
+.empty{text-align:center;color:#8fa3d6;padding:40px 0;line-height:2}
+.login{max-width:300px;margin:10vh auto 0;text-align:center}
+.login input{width:100%;padding:13px;background:#0b1330;border:3px solid var(--line);color:#fff;font-size:16px;
+  text-align:center;outline:none;margin-bottom:12px;
+  clip-path:polygon(0 6px,6px 0,calc(100% - 6px)0,100% 6px,100% calc(100% - 6px),calc(100% - 6px)100%,6px 100%,0 calc(100% - 6px))}
+.login input:focus{border-color:var(--gold)}
+button{width:100%;padding:13px;background:var(--grass);color:#fff;font-size:15px;font-weight:700;border:none;
+  border-bottom:5px solid #3c6e1e;cursor:pointer;
+  clip-path:polygon(0 6px,6px 0,calc(100% - 6px)0,100% 6px,100% calc(100% - 6px),calc(100% - 6px)100%,6px 100%,0 calc(100% - 6px))}
+button:active{transform:translateY(3px);border-bottom-width:2px}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+.tip{margin-top:26px;color:#5d6f9d;font-size:11px;text-align:center;line-height:2}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎁 回执名单 · <b>泽恺生日派对</b></h1>
+  <div class="sub">RSVP DASHBOARD · 2026.11.14</div>
+
+  <div class="login" id="login">
+    <input id="key" type="password" placeholder="输入查看密码" maxlength="16">
+    <button id="go">查看名单</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="board" style="display:none">
+    <div class="stats">
+      <div class="stat on"><b id="n-yes">0</b><span>已参加</span></div>
+      <div class="stat"><b id="n-ad">0</b><span>大朋友</span></div>
+      <div class="stat"><b id="n-kd">0</b><span>小朋友</span></div>
+      <div class="stat off"><b id="n-no">0</b><span>不参加</span></div>
+    </div>
+    <table>
+      <thead><tr><th>状态</th><th>称呼</th><th>大人</th><th>小孩</th><th>留言</th><th>时间</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="tip">⬇ 每次有新回执，刷新本页即可看到 · 数据实时来自腾讯云</div>
+  </div>
+</div>
+<script>
+/* 数据源：腾讯云 COS inbox/ 目录（由邀请函页面直接写入） */
+var COS_HOST = "https://charliexu-invite-1409899932.cos.ap-shanghai.myqcloud.com";
+var LIST_PASS = "zkk2026";
+
+var saved = localStorage.getItem('rsvp-list-key') || '';
+if (saved) load(saved);
+else document.getElementById('key').focus();
+
+document.getElementById('go').addEventListener('click', doLogin);
+document.getElementById('key').addEventListener('keydown', function(e){ if(e.key === 'Enter') doLogin(); });
+
+function doLogin(){
+  var k = document.getElementById('key').value.trim();
+  if(!k) return;
+  if(k !== LIST_PASS){ document.getElementById('err').textContent = '密码不对哦'; return; }
+  load(k);
+}
+
+function load(){
+  document.getElementById('err').textContent = '';
+  fetch(COS_HOST + '/?list-type=2&prefix=inbox/&max-keys=500')
+    .then(function(r){ if(!r.ok) throw new Error('列表加载失败 ' + r.status); return r.text(); })
+    .then(function(xml){
+      var keys = Array.from(new DOMParser().parseFromString(xml, 'text/xml').getElementsByTagName('Key'))
+        .map(function(n){ return n.textContent; });
+      keys.sort().reverse(); // 时间戳前缀，倒序=最新在前
+      return Promise.all(keys.map(function(k){
+        return fetch(COS_HOST + '/' + k).then(function(r){ return r.json(); })
+          .catch(function(){ return null; });
+      }));
+    })
+    .then(function(items){
+      render(items.filter(Boolean));
+      localStorage.setItem('rsvp-list-key', LIST_PASS);
+    })
+    .catch(function(e){ document.getElementById('err').textContent = e.message || '加载失败'; });
+}
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function render(list){
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('board').style.display = '';
+  var yes = list.filter(function(x){ return x.join; });
+  var no  = list.filter(function(x){ return !x.join; });
+  var ad = yes.reduce(function(s,x){ return s + (x.ad||0); }, 0);
+  var kd = yes.reduce(function(s,x){ return s + (x.kd||0); }, 0);
+  document.getElementById('n-yes').textContent = yes.length;
+  document.getElementById('n-ad').textContent = ad;
+  document.getElementById('n-kd').textContent = kd;
+  document.getElementById('n-no').textContent = no.length;
+  var html = '';
+  list.forEach(function(x){
+    html += x.join
+      ? '<tr class="yes"><td>✅ 参加</td><td>' + esc(x.name) + '</td><td>' + (x.ad||0) + '</td><td>' + (x.kd||0) + '</td><td class="note">' + esc(x.note||'—') + '</td><td class="note">' + esc(x.time) + '</td></tr>'
+      : '<tr class="no"><td>❌ 不来</td><td>' + esc(x.name) + '</td><td colspan="2" class="note">—</td><td class="note">' + esc(x.note||'—') + '</td><td class="note">' + esc(x.time) + '</td></tr>';
+  });
+  document.getElementById('rows').innerHTML = html || '<tr><td colspan="6" class="empty" style="color:#8fa3d6">还没有人回复，快把邀请函发出去吧 🎉</td></tr>';
+}
+</script>
+</body>
+</html>

@@ -534,7 +534,7 @@ footer .creepers svg{width:26px;height:26px}
           <label class="f-label" for="f-name"><span class="sq"></span>怎么称呼你呀？</label>
           <input class="f-input" id="f-name" maxlength="12" placeholder="如：小明妈妈 / 王小胖" autocomplete="off">
         </div>
-        <div class="f-row">
+        <div class="f-row" id="f-count-row">
           <div class="f-label"><span class="sq"></span>你们来几位？</div>
           <div class="steppers">
             <div class="stepper">
@@ -549,7 +549,7 @@ footer .creepers svg{width:26px;height:26px}
           <p class="total-line">小队合计 <b id="total-num">2</b> 人</p>
         </div>
         <div class="f-row">
-          <label class="f-label" for="f-note"><span class="sq"></span>想对小寿星说的悄悄话（选填）</label>
+          <label class="f-label" for="f-note" id="f-note-label"><span class="sq"></span>想对小寿星说的悄悄话（选填）</label>
           <input class="f-input" id="f-note" maxlength="30" placeholder="生日快乐！/ 我们大概14:30到…" autocomplete="off">
         </div>
         <button class="mc-btn gold submit-btn" id="btn-submit" type="submit">⚑ 发送回执 · 锁定名额</button>
@@ -644,11 +644,19 @@ document.querySelectorAll('.stepper button').forEach(function(btn){
 });
 
 var rsvpMode = null; // 'join' | 'no'
+var NOTE_UI = {
+  join: { label: '想对小寿星说的悄悄话（选填）', ph: '生日快乐！/ 我们大概14:30到…' },
+  no:   { label: '想对泽恺说的话（选填）',      ph: '生日快乐！/ 下次再聚～' }
+};
+function setNoteUi(mode){
+  document.getElementById('f-note-label').innerHTML = '<span class="sq"></span>' + NOTE_UI[mode].label;
+  document.getElementById('f-note').placeholder = NOTE_UI[mode].ph;
+}
 document.getElementById('btn-join').addEventListener('click', function(){
   rsvpMode = 'join';
   resultBox.classList.remove('show');
-  document.querySelector('.steppers').style.display = '';
-  document.querySelector('.total-line').style.display = '';
+  document.getElementById('f-count-row').style.display = '';
+  setNoteUi('join');
   document.getElementById('btn-submit').textContent = '⚑ 发送回执 · 锁定名额';
   form.classList.add('show');
   setTimeout(function(){ document.getElementById('f-name').focus({preventScroll:true}); }, 60);
@@ -657,8 +665,8 @@ document.getElementById('btn-join').addEventListener('click', function(){
 document.getElementById('btn-no').addEventListener('click', function(){
   rsvpMode = 'no';
   resultBox.classList.remove('show');
-  document.querySelector('.steppers').style.display = 'none';
-  document.querySelector('.total-line').style.display = 'none';
+  document.getElementById('f-count-row').style.display = 'none';
+  setNoteUi('no');
   document.getElementById('btn-submit').textContent = '⚑ 发送回复';
   form.classList.add('show');
   setTimeout(function(){ document.getElementById('f-name').focus({preventScroll:true}); }, 60);
